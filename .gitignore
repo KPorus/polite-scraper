@@ -1,0 +1,8 @@
+.venv/
+scraper/cache/
+scraper/**/__pycache__/
+__pycache__/
+*.pyc
+.DS_Store
+*.pdf
+W5 - The polite scraper.pdf

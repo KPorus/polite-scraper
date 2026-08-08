@@ -3,9 +3,12 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any
 
@@ -32,7 +35,51 @@ def ensure_dirs() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def run() -> int:
+def process_detail_page(
+    product_url: str,
+    source_page: str,
+    stats: dict[str, Any],
+) -> tuple[str, dict[str, Any] | None, dict[str, Any] | None, Exception | None]:
+    """
+    Fetch → extract → normalize → validate one book URL.
+
+    Returns (product_url, book_or_None, error_or_None, fail_exc_or_None).
+    Each worker uses its own Session (requests.Session is not thread-safe).
+    """
+    session = requests.Session()
+    session.headers.update({"User-Agent": USER_AGENT})
+    try:
+        cache_file = detail_cache_path(product_url)
+        html = fetch_with_retry(
+            session, product_url, cache_file=cache_file, stats=stats
+        )
+        fetched_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        raw = extract_raw_book(
+            html,
+            product_url=product_url,
+            source_page=source_page,
+            fetched_at=fetched_at,
+        )
+        normalized = normalize_record(raw)
+        try:
+            record = BookRecord.model_validate(normalized)
+        except ValidationError as ve:
+            return (
+                product_url,
+                None,
+                {
+                    "product_url": product_url,
+                    "reason": ve.errors(),
+                    "raw": normalized,
+                },
+                None,
+            )
+        return product_url, json.loads(record.model_dump_json()), None, None
+    except Exception as exc:
+        return product_url, None, None, exc
+
+
+def run(workers: int = 3) -> int:
     ensure_dirs()
     started = datetime.now(timezone.utc)
     t0 = time.perf_counter()
@@ -43,6 +90,7 @@ def run() -> int:
         "invalid_records": 0,
         "failed_pages": 0,
         "failed_urls": [],
+        "workers": workers,
     }
 
     session = requests.Session()
@@ -56,47 +104,56 @@ def run() -> int:
 
     books_by_url: dict[str, dict[str, Any]] = {}
     errors: list[dict[str, Any]] = []
+    result_lock = threading.Lock()
     printed_sample = False
 
-    for product_url in urls_to_fetch:
-        try:
-            cache_file = detail_cache_path(product_url)
-            html = fetch_with_retry(
-                session, product_url, cache_file=cache_file, stats=stats
-            )
-            fetched_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            raw = extract_raw_book(
-                html,
-                product_url=product_url,
-                source_page=source_by_book.get(product_url, CATALOGUE_START),
-                fetched_at=fetched_at,
-            )
-            if not printed_sample:
-                print("sample_raw_record=")
-                print(json.dumps(raw, indent=2, ensure_ascii=False))
-                printed_sample = True
+    print(f"detail_workers={workers}")
 
-            normalized = normalize_record(raw)
-            try:
-                record = BookRecord.model_validate(normalized)
-            except ValidationError as ve:
-                stats["invalid_records"] += 1
-                errors.append(
-                    {
-                        "product_url": product_url,
-                        "reason": ve.errors(),
-                        "raw": normalized,
-                    }
-                )
-                continue
-
-            key = str(record.product_url)
-            books_by_url[key] = json.loads(record.model_dump_json())
-        except Exception as exc:
-            stats["failed_pages"] += 1
-            stats["failed_urls"].append({"url": product_url, "error": str(exc)})
-            print(f"SKIP       {product_url}  ({exc})")
-            continue
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        futures = [
+            pool.submit(
+                process_detail_page,
+                url,
+                source_by_book.get(url, CATALOGUE_START),
+                stats,
+            )
+            for url in urls_to_fetch
+        ]
+        for fut in as_completed(futures):
+            product_url, book, err, fail_exc = fut.result()
+            with result_lock:
+                if fail_exc is not None:
+                    stats["failed_pages"] += 1
+                    stats["failed_urls"].append(
+                        {"url": product_url, "error": str(fail_exc)}
+                    )
+                    print(f"SKIP       {product_url}  ({fail_exc})")
+                    continue
+                if err is not None:
+                    stats["invalid_records"] += 1
+                    errors.append(err)
+                    continue
+                if book is not None:
+                    if not printed_sample:
+                        # Reconstruct a raw-ish sample for the checkpoint.
+                        sample = {
+                            k: book[k]
+                            for k in (
+                                "title",
+                                "product_url",
+                                "price_text",
+                                "availability_text",
+                                "rating_text",
+                                "description",
+                                "source_page",
+                                "fetched_at",
+                            )
+                        }
+                        print("sample_raw_record=")
+                        print(json.dumps(sample, indent=2, ensure_ascii=False))
+                        printed_sample = True
+                    # Idempotent: canonical product_url overwrites, never duplicates.
+                    books_by_url[str(book["product_url"])] = book
 
     books = list(books_by_url.values())
     stats["valid_records"] = len(books)
@@ -122,6 +179,7 @@ def run() -> int:
         "catalogue_pages": CATALOGUE_PAGES_LIMIT,
         "discovered_urls": len(book_urls),
         "unique_urls": len(book_urls),
+        "workers": workers,
         "pages_fetched": stats["pages_fetched"],
         "cache_hits": stats["cache_hits"],
         "valid_records": stats["valid_records"],
@@ -140,14 +198,26 @@ def run() -> int:
     print(f"run-report → {report_path}")
     print(
         f"summary valid={stats['valid_records']} invalid={stats['invalid_records']} "
-        f"failed_pages={stats['failed_pages']} duration_s={duration_s}"
+        f"failed_pages={stats['failed_pages']} workers={workers} duration_s={duration_s}"
     )
     return 0
 
 
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Polite Books to Scrape pipeline")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=3,
+        help="ThreadPool workers for detail pages (default 3; use 1 for serial)",
+    )
+    return parser.parse_args(argv)
+
+
 if __name__ == "__main__":
     try:
-        raise SystemExit(run())
+        args = parse_args()
+        raise SystemExit(run(workers=max(1, args.workers)))
     except KeyboardInterrupt:
         print("interrupted", file=sys.stderr)
         raise SystemExit(130)

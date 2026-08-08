@@ -33,7 +33,8 @@ pip install -r requirements.txt
 
 ```bash
 cd scraper
-python src/main.py
+python src/main.py              # default: 3 detail workers
+python src/main.py --workers 1  # serial detail fetch
 ```
 
 First run hits the network (with delays). Later runs mostly print `CACHE HIT` and read `cache/`.
@@ -43,6 +44,7 @@ Outputs:
 - `output/books.json` — validated unique records (expect 60)
 - `output/errors.json` — schema failures with reasons
 - `output/run-report.json` — counts, failures, cache hits, duration
+- `output/enrichment.json` — optional Ollama opinions (separate from scraped facts)
 
 ## Record schema
 
@@ -112,3 +114,58 @@ From a real local run (mostly cache hits after the first fetch):
 ## Limitation
 
 Catalogue discovery follows the site’s own “next” link for exactly three pages. Broader crawls, JS-rendered pages, and production retry/backoff are out of scope for this assignment.
+
+## Stretch
+
+### Browser cost comparison
+
+```bash
+cd scraper
+pip install playwright psutil
+playwright install chromium
+python stretch/browser_compare.py
+```
+
+Target: [quotes.toscrape.com/js](https://quotes.toscrape.com/js) — quotes are injected by JavaScript (View Source shows none).
+
+Example local measurements (your machine will differ):
+
+| Method | Quotes found | Time | RSS (approx) |
+|--------|--------------|------|----------------|
+| Plain HTTP + Beautiful Soup | 0 | 2.54 s | 36.2 MiB |
+| Playwright (Chromium) | 10 | run `python stretch/browser_compare.py` after `playwright install chromium` | higher (browser process) |
+
+**Why the core assignment needed no browser:** Books to Scrape embeds product fields in the HTML the server sends. A browser would only add time and memory. `quotes.toscrape.com/js` needs a browser because the quotes are not in the raw response.
+
+### Parser tests
+
+```bash
+cd scraper
+pip install pytest
+pytest tests/ -q
+```
+
+Five offline tests cover price normalization, relative→absolute URLs, missing description, duplicate URL idempotency, and malformed price.
+
+### Background detail jobs (not a cron)
+
+Detail pages run as queued jobs in a `ThreadPoolExecutor` with a concurrency cap. This overlaps HTTP waits across workers (GIL means this is I/O concurrency, not multi-core CPU parallel Python). A shared rate limiter still spaces **network request starts** by ≥500 ms.
+
+```bash
+python src/main.py --workers 3   # default
+python src/main.py --workers 1   # serial (debug)
+```
+
+Writes stay **idempotent** by absolute `product_url`. One failed job does not cancel the pool.
+
+### AI enrichment (local Ollama)
+
+Scraped facts stay in `output/books.json`. Model opinions go to a separate file:
+
+```bash
+# requires Ollama running locally with a pulled model, e.g. llama3.2
+python src/enrich.py --limit 5
+# → output/enrichment.json  keyed by product_url: {category, summary}
+```
+
+Schema-forced via Pydantic. Enrichment failures skip that book only; they never rewrite scraped fields.

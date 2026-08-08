@@ -1,9 +1,10 @@
 {
-  "started_at": "2026-08-08T00:02:53Z",
-  "duration_seconds": 3.466,
+  "started_at": "2026-08-08T07:20:34Z",
+  "duration_seconds": 4.867,
   "catalogue_pages": 3,
   "discovered_urls": 60,
   "unique_urls": 60,
+  "workers": 3,
   "pages_fetched": 1,
   "cache_hits": 63,
   "valid_records": 60,
@@ -12,7 +13,7 @@
   "failed_urls": [
     {
       "url": "https://books.toscrape.com/catalogue/this-book-does-not-exist-zzzz_0/index.html",
-      "error": "request failed for https://books.toscrape.com/catalogue/this-book-does-not-exist-zzzz_0/index.html: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+      "error": "request failed for https://books.toscrape.com/catalogue/this-book-does-not-exist-zzzz_0/index.html: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
     }
   ],
   "output": {

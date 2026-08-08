@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,28 @@ from config import (
     MIN_DELAY_S,
     REQUEST_TIMEOUT_S,
 )
+
+# Shared rate limit so concurrent workers do not start network requests closer
+# than MIN_DELAY_S apart (I/O can still overlap once a request is in flight).
+_rate_lock = threading.Lock()
+_stats_lock = threading.Lock()
+_next_allowed_at = 0.0
+
+
+def _wait_for_rate_slot() -> None:
+    global _next_allowed_at
+    with _rate_lock:
+        now = time.monotonic()
+        wait = _next_allowed_at - now
+        if wait > 0:
+            time.sleep(wait)
+            now = time.monotonic()
+        _next_allowed_at = now + MIN_DELAY_S
+
+
+def _bump_stat(stats: dict[str, Any], key: str, delta: int = 1) -> None:
+    with _stats_lock:
+        stats[key] = stats.get(key, 0) + delta
 
 
 class HTTPStatusError(Exception):
@@ -45,12 +68,12 @@ def polite_get(
     if cache_file.exists():
         html = cache_file.read_text(encoding="utf-8", errors="replace")
         html = html.replace("Â£", "£")
-        stats["cache_hits"] = stats.get("cache_hits", 0) + 1
+        _bump_stat(stats, "cache_hits")
         print(f"CACHE HIT  {cache_file.name}  size={len(html)} bytes")
         return html, None
 
-    time.sleep(MIN_DELAY_S)
-    stats["pages_fetched"] = stats.get("pages_fetched", 0) + 1
+    _wait_for_rate_slot()
+    _bump_stat(stats, "pages_fetched")
     try:
         resp = session.get(url, timeout=REQUEST_TIMEOUT_S)
     except requests.Timeout:

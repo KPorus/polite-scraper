@@ -14,7 +14,7 @@ REQUEST_TIMEOUT_S = 10
 MIN_DELAY_S = 0.5
 USER_AGENT = (
     "FlyRankInternship-A9/1.0 "
-    "(+https://github.com/flyrank-internship/polite-scraper)"
+    "(+https://github.com/KPorus/polite-scraper)"
 )
 
 # Intentionally broken URL (Stage 5) — never hammer the live site to test failure.

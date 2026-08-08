@@ -1,4 +1,4 @@
-# The polite scraper (FlyRank Internship · Backend · W5 · A9)
+# The polite scraper
 
 Python scraper for the public **Books to Scrape** practice sandbox. It fetches the first three catalogue pages, visits 60 book detail pages, normalizes and schema-validates records, skips broken pages, and writes an honest run report.
 
@@ -128,12 +128,16 @@ python stretch/browser_compare.py
 
 Target: [quotes.toscrape.com/js](https://quotes.toscrape.com/js) — quotes are injected by JavaScript (View Source shows none).
 
-Example local measurements (your machine will differ):
+Example local measurements:
 
-| Method | Quotes found | Time | RSS (approx) |
-|--------|--------------|------|----------------|
-| Plain HTTP + Beautiful Soup | 0 | 2.54 s | 36.2 MiB |
-| Playwright (Chromium) | 10 | run `python stretch/browser_compare.py` after `playwright install chromium` | higher (browser process) |
+Browser stretch is done.
+
+| Method | Quotes | Time | RSS |
+|--------|--------|------|-----|
+| HTTP | **0** | 1.7 s | 36.3 MiB |
+| Playwright | **10** | 7.6 s | 45.4 MiB |
+
+Conclusion: quotes are injected by JS, so plain HTTP sees none; Books to Scrape needs no browser because its data is already in the HTML.
 
 **Why the core assignment needed no browser:** Books to Scrape embeds product fields in the HTML the server sends. A browser would only add time and memory. `quotes.toscrape.com/js` needs a browser because the quotes are not in the raw response.
 
@@ -164,6 +168,8 @@ Scraped facts stay in `output/books.json`. Model opinions go to a separate file:
 
 ```bash
 # requires Ollama running locally with a pulled model, e.g. llama3.2
+ollama serve
+ollama pull llama3.2
 python src/enrich.py --limit 5
 # → output/enrichment.json  keyed by product_url: {category, summary}
 ```

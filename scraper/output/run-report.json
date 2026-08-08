@@ -1,19 +1,19 @@
 {
-  "started_at": "2026-08-08T07:20:34Z",
-  "duration_seconds": 4.867,
+  "started_at": "2026-08-08T13:46:51Z",
+  "duration_seconds": 92.167,
   "catalogue_pages": 3,
   "discovered_urls": 60,
   "unique_urls": 60,
   "workers": 3,
-  "pages_fetched": 1,
-  "cache_hits": 63,
+  "pages_fetched": 64,
+  "cache_hits": 0,
   "valid_records": 60,
   "invalid_records": 0,
   "failed_pages": 1,
   "failed_urls": [
     {
       "url": "https://books.toscrape.com/catalogue/this-book-does-not-exist-zzzz_0/index.html",
-      "error": "request failed for https://books.toscrape.com/catalogue/this-book-does-not-exist-zzzz_0/index.html: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+      "error": "HTTP 404 for https://books.toscrape.com/catalogue/this-book-does-not-exist-zzzz_0/index.html"
     }
   ],
   "output": {

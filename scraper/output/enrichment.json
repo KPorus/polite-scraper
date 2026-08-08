@@ -1,1 +1,22 @@
-{}
+{
+  "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html": {
+    "category": "LGBTQ Fiction",
+    "summary": "A historical romance about a young woman's infatuation with a male impersonator in 19th-century music halls."
+  },
+  "https://books.toscrape.com/catalogue/soumission_998/index.html": {
+    "category": "Dystopian Fiction",
+    "summary": "A young man embarks on a university career in a France eerily similar to our own, expecting a mundane yet peaceful life. However, the country's political forces eventually lead to its downfall in a quiet, uneventful collapse."
+  },
+  "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html": {
+    "category": "Poetry",
+    "summary": "A Light in the Attic is a classic collection of poetry and drawings from Shel Silverstein, celebrating its 20th anniversary with this special edition."
+  },
+  "https://books.toscrape.com/catalogue/sharp-objects_997/index.html": {
+    "category": "Psychological Thriller",
+    "summary": "Reporter Camille Preaker returns to her hometown to cover the murders of two preteen girls, only to find herself confronting her own troubled past and dark family secrets."
+  },
+  "https://books.toscrape.com/catalogue/sapiens-a-brief-history-of-humankind_996/index.html": {
+    "category": "History",
+    "summary": "A groundbreaking narrative that explores the creation and evolution of humanity, integrating history and science to reconsider accepted narratives."
+  }
+}

@@ -27,14 +27,42 @@ cd scraper
 python3 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env
+```
+
+## PostgreSQL (Docker)
+
+Scraped books are upserted into Postgres after `books.json` is written (idempotent on `product_url`).
+
+```bash
+cd scraper
+docker compose up -d
+# wait until healthy, then scrape (pushes to DB by default)
+python src/main.py --workers 3
+python src/main.py --skip-db   # JSON only, no DB
+```
+
+Default connection (also in `.env.example`):
+
+```text
+postgresql://scraper:scraper@localhost:5432/books
+```
+
+**Other project (retrieval):** connect with the same `DATABASE_URL` and query:
+
+```sql
+SELECT product_url, title, description, price_gbp, rating_text, fetched_at
+FROM books
+ORDER BY title;
 ```
 
 ## Run
 
 ```bash
 cd scraper
-python src/main.py              # default: 3 detail workers
+python src/main.py              # default: 3 detail workers + DB upsert
 python src/main.py --workers 1  # serial detail fetch
+python src/main.py --skip-db    # skip PostgreSQL
 ```
 
 First run hits the network (with delays). Later runs mostly print `CACHE HIT` and read `cache/`.
@@ -43,7 +71,8 @@ Outputs:
 
 - `output/books.json` — validated unique records (expect 60)
 - `output/errors.json` — schema failures with reasons
-- `output/run-report.json` — counts, failures, cache hits, duration
+- `output/run-report.json` — counts, failures, cache hits, duration, `db_upserted`
+- PostgreSQL `books` table — same records upserted for other projects to query
 - `output/enrichment.json` — optional Ollama opinions (separate from scraped facts)
 
 ## Record schema

@@ -6,3 +6,5 @@ __pycache__/
 .DS_Store
 *.pdf
 W5 - The polite scraper.pdf
+scraper/.env
+.env

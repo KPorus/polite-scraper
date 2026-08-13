@@ -28,6 +28,7 @@ from discover import discover_catalogue
 from extract import extract_raw_book
 from fetch import detail_cache_path, fetch_with_retry
 from models import BookRecord, normalize_record
+from db import upsert_books
 
 
 def ensure_dirs() -> None:
@@ -79,7 +80,7 @@ def process_detail_page(
         return product_url, None, None, exc
 
 
-def run(workers: int = 3) -> int:
+def run(workers: int = 3, *, skip_db: bool = False) -> int:
     ensure_dirs()
     started = datetime.now(timezone.utc)
     t0 = time.perf_counter()
@@ -172,6 +173,41 @@ def run(workers: int = 3) -> int:
         encoding="utf-8",
     )
 
+    db_upserted = 0
+    if not skip_db:
+        try:
+            db_upserted = upsert_books(books)
+            print(f"DB upserted={db_upserted} → PostgreSQL")
+        except Exception as exc:
+            print(f"DB upsert failed: {exc}", file=sys.stderr)
+            # JSON already written; fail the run so broken storage is noticed.
+            duration_s = round(time.perf_counter() - t0, 3)
+            report = {
+                "started_at": started.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "duration_seconds": duration_s,
+                "catalogue_pages": CATALOGUE_PAGES_LIMIT,
+                "discovered_urls": len(book_urls),
+                "unique_urls": len(book_urls),
+                "workers": workers,
+                "pages_fetched": stats["pages_fetched"],
+                "cache_hits": stats["cache_hits"],
+                "valid_records": stats["valid_records"],
+                "invalid_records": stats["invalid_records"],
+                "failed_pages": stats["failed_pages"],
+                "failed_urls": stats["failed_urls"],
+                "db_upserted": 0,
+                "db_error": str(exc),
+                "output": {
+                    "books": str(books_path.relative_to(ROOT)),
+                    "errors": str(errors_path.relative_to(ROOT)),
+                },
+            }
+            report_path.write_text(
+                json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            return 1
+
     duration_s = round(time.perf_counter() - t0, 3)
     report = {
         "started_at": started.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -186,6 +222,7 @@ def run(workers: int = 3) -> int:
         "invalid_records": stats["invalid_records"],
         "failed_pages": stats["failed_pages"],
         "failed_urls": stats["failed_urls"],
+        "db_upserted": db_upserted if not skip_db else None,
         "output": {
             "books": str(books_path.relative_to(ROOT)),
             "errors": str(errors_path.relative_to(ROOT)),
@@ -198,7 +235,8 @@ def run(workers: int = 3) -> int:
     print(f"run-report → {report_path}")
     print(
         f"summary valid={stats['valid_records']} invalid={stats['invalid_records']} "
-        f"failed_pages={stats['failed_pages']} workers={workers} duration_s={duration_s}"
+        f"failed_pages={stats['failed_pages']} workers={workers} "
+        f"db_upserted={db_upserted if not skip_db else 'skipped'} duration_s={duration_s}"
     )
     return 0
 
@@ -211,13 +249,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=3,
         help="ThreadPool workers for detail pages (default 3; use 1 for serial)",
     )
+    parser.add_argument(
+        "--skip-db",
+        action="store_true",
+        help="Write JSON only; do not upsert into PostgreSQL",
+    )
     return parser.parse_args(argv)
 
 
 if __name__ == "__main__":
     try:
         args = parse_args()
-        raise SystemExit(run(workers=max(1, args.workers)))
+        raise SystemExit(
+            run(workers=max(1, args.workers), skip_db=args.skip_db)
+        )
     except KeyboardInterrupt:
         print("interrupted", file=sys.stderr)
         raise SystemExit(130)

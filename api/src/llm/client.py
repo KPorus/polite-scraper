@@ -98,7 +98,7 @@ def chat_completion(
             res = client.chat.completions.create(
                 model=model,
                 temperature=0.2,
-                max_tokens=250,
+                max_tokens=120,
                 response_format={"type": "json_object"},
                 messages=messages,
             )

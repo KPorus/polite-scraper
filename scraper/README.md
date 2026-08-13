@@ -75,6 +75,10 @@ Outputs:
 - PostgreSQL `books` table — same records upserted for other projects to query
 - `output/enrichment.json` — optional Ollama opinions (separate from scraped facts)
 
+## Related: W7 enrich API
+
+Sibling FastAPI app that looks up these books in Postgres and returns schema-validated LLM enrichment: see [`../api/README.md`](../api/README.md).
+
 ## Record schema
 
 ```json

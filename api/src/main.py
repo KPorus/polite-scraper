@@ -4,7 +4,13 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
+
+# Allow `uvicorn src.main:app` from the api/ directory without installing a package.
+_API_ROOT = Path(__file__).resolve().parents[1]
+if str(_API_ROOT) not in sys.path:
+    sys.path.insert(0, str(_API_ROOT))
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -25,7 +31,7 @@ from src.llm.cost import log_cost
 from src.llm.parse import parse_and_validate, quarantine, validation_error_text
 from src.llm.schema import EnrichRequest, EnrichResponse, LlmEnrichment, STUB_LLM
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = _API_ROOT
 load_dotenv(ROOT / ".env")
 
 app = FastAPI(title="Book Enrich API", version="0.4.0")
@@ -68,8 +74,8 @@ def _merge_response(book: dict, llm_fields: LlmEnrichment) -> EnrichResponse:
 
 def _user_payload(book: dict) -> str:
     desc = book.get("description")
-    if isinstance(desc, str) and len(desc) > 500:
-        desc = desc[:500] + "…"
+    if isinstance(desc, str) and len(desc) > 200:
+        desc = desc[:200] + "…"
     payload = {
         "title": book["title"],
         "description": desc,

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "sharp-objects",
+    "query": "Sharp Objects",
+    "expect": {
+      "category": "mystery",
+      "book_type": "novel"
+    },
+    "notes": "clear mystery novel"
+  },
+  {
+    "id": "behind-closed-doors",
+    "query": "Behind Closed Doors",
+    "expect": {
+      "category": "mystery",
+      "book_type": "novel"
+    },
+    "notes": "domestic thriller / mystery"
+  },
+  {
+    "id": "sapiens",
+    "query": "Sapiens",
+    "expect": {
+      "category": "history",
+      "book_type": "nonfiction"
+    },
+    "notes": "history nonfiction"
+  },
+  {
+    "id": "how-music-works",
+    "query": "How Music Works",
+    "expect": {
+      "category": "other",
+      "book_type": "nonfiction"
+    },
+    "notes": "essayistic nonfiction — category must not be nonfiction"
+  },
+  {
+    "id": "mesaerion",
+    "query": "Mesaerion",
+    "expect": {
+      "category": "scifi",
+      "book_type": "other"
+    },
+    "notes": "sci-fi anthology — book_type other (not a single novel)"
+  },
+  {
+    "id": "chase-me",
+    "query": "Chase Me",
+    "expect": {
+      "category": "romance",
+      "book_type": "novel"
+    },
+    "notes": "romance; series membership is optional signal"
+  },
+  {
+    "id": "olio-ambiguous",
+    "query": "Olio",
+    "expect": {
+      "category": "other"
+    },
+    "notes": "ambiguous poetry/hybrid — when-unsure path; category other",
+    "max_confidence": 0.85
+  },
+  {
+    "id": "libertarianism",
+    "query": "Libertarianism for Beginners",
+    "expect": {
+      "category": "other",
+      "book_type": "nonfiction"
+    },
+    "notes": "political primer — not a listed genre"
+  }
+]

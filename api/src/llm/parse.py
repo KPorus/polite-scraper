@@ -52,6 +52,7 @@ def quarantine(
     QUARANTINE_PATH.parent.mkdir(parents=True, exist_ok=True)
     line = {
         "ts": datetime.now(timezone.utc).isoformat(),
+        "status": "quarantined",
         "prompt_version": prompt_version,
         "input": input_payload,
         "raw_output": raw_output,

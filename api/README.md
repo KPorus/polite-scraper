@@ -8,6 +8,10 @@ Given a messy book title query, this API looks up the matching catalogue row in 
 LLM_BASE_URL · LLM_API_KEY · LLM_MODEL
 ```
 
+## Job card
+
+See [JOB-CARD.md](JOB-CARD.md).
+
 ## Prerequisites
 
 1. Scraper Postgres running and populated (`cd ../scraper && docker compose up -d && python src/main.py`)
@@ -28,4 +32,28 @@ cp .env.example .env
 ```bash
 python src/llm/hello.py
 # expect output containing: ready
+```
+
+## Run the API
+
+```bash
+cd api
+source .venv/bin/activate
+LLM_STUB=1 uvicorn src.main:app --reload --port 8000
+```
+
+### Valid curl (stub — no model call)
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/enrich \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"Sharp Objects"}'
+```
+
+### Invalid curl (missing field → 400)
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/enrich \
+  -H 'Content-Type: application/json' \
+  -d '{}'
 ```

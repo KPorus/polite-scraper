@@ -7,4 +7,6 @@ __pycache__/
 *.pdf
 W5 - The polite scraper.pdf
 scraper/.env
+api/.env
 .env
+*.pdf
